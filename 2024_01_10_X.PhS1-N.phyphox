@@ -1,0 +1,368 @@
+<phyphox xmlns="http://phyphox.org/xml" xmlns:editor="http://phyphox.org/editor/xml" version="1.9" editor:version="1.0" locale="en">
+    <title>Photoelectric Effect (Voltage-Intensity)</title>
+    <category>phyphox electricity box</category>
+    <color>df267f</color>
+    <description>Measures the voltage at an LED against the light intensity given by the internal light sensor of a smartphone and identifies the threshold voltage of the LED.</description>
+    <icon format="string">PHI</icon>
+    
+    <translations>
+	    <translation locale="de">
+            <title>Photoelektrischer Effekt (Spannung-Intensität)</title>
+            <category>phyphox E-Lehre-Box</category>
+            <description>Misst die Spannung an einer LED und deren Lichtintensität (interner Sensor eines Smartphones). Aus den Messpunkten wird die Schwellenspannung der LED bestimmt.</description>
+            <string original="Raw Data">Rohdaten</string>
+            <string original="Time">Zeit</string>
+            <string original="Voltage">Spannung</string>
+            <string original="Intensity">Intensität</string>
+            <string original="Voltage at LED (Channel A)">Spannung an LED (Kanal A)</string>
+            <string original="Momentary voltage at LED:">Momentanspannung an LED:</string>
+            <string original="Light intensity (built-in sensor)">Lichtintensität (interner Sensor)</string>
+            <string original="Momentary light intensity:">Aktueller Lichtintensitätswert:</string>
+            <string original="Identifying the threshold voltage">Bestimmen der Schwellenspannung</string>
+            <string original="Parameters for the line of best fit:">Parameter für die Trendgerade:</string>
+            <string original="Minimum intensity">Intensitätsminimum</string>
+            <string original="Maximum intensity">Intensitätsmaximum</string>
+            <string original="Voltage at LED">Spannung an LED</string>
+            <string original="Light intensity">Lichtintensität</string>
+            <string original="Number of data points:">Anzahl Datenpunkte:</string>
+            <string original="Threshold voltage:">Schwellenspannung:</string>
+            <string original="Error on threshold voltage:">Unsicherheit auf die Schwellenspannung:</string>
+            <string original="Additional parameters for line of best fit">Weitere Parameter für Trendgerade</string>
+            <string original="Approximate error on threshold voltage ...">Geschätzte Unsicherheit auf die Schwellenspannung ...</string>
+            <string original="... from placing the line of best fit:">... durch Platzierung der Trendgeraden:</string>
+            <string original="... from inaccuracies in the setup:">... durch Ungenauigkeiten im Aufbau:</string>
+	    </translation>
+    </translations>
+	
+    <data-containers>
+        <!--Rohdaten-->
+        <container size="0" static="false">voltageCH1</container>
+        <container size="0" static="false">intensity</container>
+        <container size="0" static="false">timeCH1</container>
+        <container size="0" static="false">time_intensity</container>
+
+        <!--Plotbare Zeitachsen-->
+        <container size="1" static="false">timeCH1_Offset</container>
+        <container size="1" static="false">time_intensity_Offset</container>
+        <container size="0" static="false">timeCH1_new</container>
+        <container size="0" static="false">time_intensity_new</container>
+
+         <!--Buffer für plotbaren V-lx-Zusammenhang-->
+        <container size="1" static="false">n_intensity</container>
+        <container size="1" static="false">n_voltageCH1_plot</container>
+        <container size="1" static="false">voltageCH1_append</container>
+        <container size="0" static="false">voltageCH1_temp</container>
+        <container size="0" static="false">voltageCH1_plot</container>
+        <container size="1" static="false">voltageCH1_mean</container>
+        <container size="1" static="false" init="0">intcontrol</container>
+
+        <!--Berechnung V-lx-Trendgerade-->
+        <container size="0" static="false">voltageCH1_plot_minmax</container>
+        <container size="0" static="false">intensity_minmax</container>
+        <container size="0" static="false">voltlux_minmax_mult</container>
+        <container size="0" static="false">intensity_squared</container>
+        <container size="1" static="false">voltageCH1_plot_mean</container>
+        <container size="1" static="false">intensity_mean</container>
+        <container size="1" static="false">voltageCH1_plot_sum</container>
+        <container size="1" static="false">intensity_sum</container>
+        <container size="1" static="false">voltlux_minmax_mult_sum</container>
+        <container size="1" static="false">intensity_squared_sum</container>
+        <container size="1" static="false">minlux</container>
+        <container size="1" static="false">maxlux</container>
+        <container size="1" static="false">n</container>
+        <container size="1" static="false">coeff_deg0</container>
+        <container size="1" static="false">coeff_deg1</container>
+        <container size="0" static="false">xcoord_trend</container>
+        <container size="0" static="false">ycoord_trend</container>
+
+        <!--Berechnung Fehler auf Schwellenspannung-->
+        <container size="1" static="false">error_voltage_approx1</container>
+        <container size="1" static="false">error_voltage_approx2</container>
+        <container size="0" static="false">ycoord_trend_minmax</container>
+        <container size="0" static="false">variance_voltage_buffer</container>
+        <container size="1" static="false">variance_voltage_sum</container>
+        <container size="1" static="false">sigma_voltage</container>
+        <container size="1" static="false">error_voltage_minmax</container>
+        <container size="1" static="false">error_voltage</container>
+        
+        <!--Hilfscontainer-->
+        <container size="1" static="false">dummy</container>
+        <container size="1" static="true" init="0">null</container>
+        <container size="1" static="true" init="1">eins</container>
+        <container size="1" static="true">empty</container>
+        <container size="1" static="false">debug_count</container>
+    </data-containers>
+
+    <input>
+        <bluetooth name="E-Lehre"  mode="notification" subscribeOnStart="false">
+	        <config char="cddf1003-30f7-4671-8b43-5e40ba53514a" conversion="hexadecimal">0C80</config>
+            <output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian">voltageCH1</output>
+            <output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="8">timeCH1</output>
+        </bluetooth>
+        <sensor average="false" type="light">
+            <output component="t">time_intensity</output>
+            <output component="x">intensity</output>
+        </sensor>
+    </input>
+
+    <output>
+    </output>
+
+    <analysis sleep="0"  onUserInput="false">
+        <!--Plotbare Zeitwerte-->
+        <first>
+            <input clear="false">timeCH1</input>
+            <input clear="false">time_intensity</input>
+            <output>timeCH1_Offset</output>
+            <output>time_intensity_Offset</output>
+        </first>
+        <subtract>
+            <input clear="false">timeCH1</input>
+            <input clear="false">timeCH1_Offset</input>
+            <output>timeCH1_new</output>
+        </subtract>
+        <subtract>
+            <input clear="false">time_intensity</input>
+            <input clear="false">time_intensity_Offset</input>
+            <output>time_intensity_new</output>
+        </subtract>
+
+        <!--Berechnung zum Plotten der Kennlinie mit Lichtsensor-->
+        <count>
+            <input clear="false">intensity</input>
+            <output>n_intensity</output>
+        </count>
+        <count>
+            <input clear="false">voltageCH1_plot</input>
+            <output>n_voltageCH1_plot</output>
+        </count>
+        <formula formula="[1]">
+            <input clear="false">voltageCH1</input>
+            <output>voltageCH1_append</output>
+        </formula>
+        <append>
+            <input clear="false">voltageCH1_temp</input>
+            <input clear="false">voltageCH1_append</input>
+            <output>voltageCH1_temp</output>
+        </append>
+        <average>
+            <input clear="false">voltageCH1_temp</input>
+            <output as="average">voltageCH1_mean</output>
+        </average>
+        <if less="true" equal="false" greater="false">
+            <input clear="false">n_voltageCH1_plot</input>
+            <input clear="false">n_intensity</input>
+            <input clear="false">eins</input>
+            <input clear="false">null</input>
+            <output>intcontrol</output>
+        </if>
+        <if less="false" equal="true" greater="false">
+            <input clear="false">intcontrol</input>
+            <input clear="false">eins</input>
+            <input clear="false">voltageCH1_mean</input>
+            <input type="empty"/>
+            <output clear="false">voltageCH1_plot</output>
+        </if>
+        <if less="false" equal="true" greater="false">
+            <input clear="false">intcontrol</input>
+            <input clear="false">eins</input>
+            <input type="empty"/>
+            <output clear="true">voltageCH1_temp</output>
+        </if>
+
+        <!--Bereich für die Trendgerade herausfiltern-->
+        <rangefilter>
+            <input clear="false">intensity</input>
+            <input as="min" type="buffer" clear="false">minlux</input>
+            <input as="max" type="buffer" clear="false">maxlux</input>
+            <input clear="false">voltageCH1_plot</input>
+            <output>intensity_minmax</output>
+            <output>voltageCH1_plot_minmax</output>
+        </rangefilter>
+
+        <!--Notwendige Parameter für die Berechnung der Koeffizienten der Trendgeraden-->
+        <count>
+            <input clear="false">voltageCH1_plot_minmax</input>
+            <output>n</output>
+        </count>
+        <multiply>
+            <input clear="false">intensity_minmax</input>
+            <input clear="false">intensity_minmax</input>
+            <output>intensity_squared</output>
+        </multiply>
+        <multiply>
+            <input clear="false">voltageCH1_plot_minmax</input>
+            <input clear="false">intensity_minmax</input>
+            <output>voltlux_minmax_mult</output>
+        </multiply>
+        <reduce averageX="true" averageY="false" sumY="true">
+            <input as="factor" type="buffer" clear="false">n</input>
+            <input as="x" clear="false">voltageCH1_plot_minmax</input>
+            <input as="y" clear="false">voltageCH1_plot_minmax</input>
+            <output as="x">voltageCH1_plot_mean</output>
+            <output as="y">voltageCH1_plot_sum</output>
+        </reduce>
+        <reduce averageX="true" averageY="false" sumY="true">
+            <input as="factor" type="buffer" clear="false">n</input>
+            <input as="x" clear="false">intensity_minmax</input>
+            <input as="y" clear="false">intensity_minmax</input>
+            <output as="x">intensity_mean</output>
+            <output as="y">intensity_sum</output>
+        </reduce>
+        <reduce averageX="true" averageY="false" sumY="true">
+            <input as="factor" type="buffer" clear="false">n</input>
+            <input as="x" clear="false">voltlux_minmax_mult</input>
+            <input as="y" clear="false">voltlux_minmax_mult</input>
+            <output as="x">dummy</output>
+            <output as="y">voltlux_minmax_mult_sum</output>
+        </reduce>
+        <reduce averageX="true" averageY="false" sumY="true">
+            <input as="factor" type="buffer" clear="false">n</input>
+            <input as="x" clear="false">intensity_squared</input>
+            <input as="y" clear="false">intensity_squared</input>
+            <output as="x">dummy</output>
+            <output as="y">intensity_squared_sum</output>
+        </reduce>
+
+        <!--Berechnung der Koeffizienten der Trendgeraden-->
+        <formula formula="(([1]/[2])-([3]*[4]))/(([5]/[6])-([7]^2))">
+            <input>voltlux_minmax_mult_sum</input>
+            <input clear="false">n</input>
+            <input clear="false">intensity_mean</input>
+            <input clear="false">voltageCH1_plot_mean</input>
+            <input clear="false">intensity_squared_sum</input>
+            <input clear="false">n</input>
+            <input clear="false">intensity_mean</input>
+            <output>coeff_deg1</output>
+        </formula>
+        <formula formula="[1]-([2]*[3])">
+            <input clear="false">voltageCH1_plot_mean</input>
+            <input clear="false">intensity_mean</input>
+            <input clear="false">coeff_deg1</input>
+            <output>coeff_deg0</output>
+        </formula>
+
+        <!--Plotbare Buffer für Trendgerade erstellen-->
+        <append>
+            <input clear="false">null</input>
+            <input clear="false">intensity</input>
+            <output>xcoord_trend</output>
+        </append>
+        <formula formula="[1]*[2_]+[3]">
+            <input clear="false">coeff_deg1</input>
+            <input clear="false">xcoord_trend</input>
+            <input clear="false">coeff_deg0</input>
+            <output type="buffer">ycoord_trend</output>
+        </formula>
+
+        <!--Buffer für die Berechnung der Unsicherheit-->
+        <formula formula="[1]*[2_]+[3]">
+            <input clear="false">coeff_deg1</input>
+            <input clear="false">intensity_minmax</input>
+            <input clear="false">coeff_deg0</input>
+            <output type="buffer">ycoord_trend_minmax</output>
+        </formula>
+
+        <!--Berechnung der Unsicherheit-->
+        <formula formula="([1_]-[2_])^2">
+            <input clear="false">voltageCH1_plot_minmax</input>
+            <input clear="false">ycoord_trend_minmax</input>
+            <output type="buffer">variance_voltage_buffer</output>
+        </formula>
+        <reduce averageX="true" averageY="false" sumY="true">
+            <input as="factor" type="buffer" clear="false">n</input>
+            <input as="x" clear="false">variance_voltage_buffer</input>
+            <input as="y" clear="false">variance_voltage_buffer</input>
+            <output as="x">dummy</output>
+            <output as="y">variance_voltage_sum</output>
+        </reduce>
+        <formula formula="sqrt([1]/([2]-1))">
+            <input clear="false">variance_voltage_sum</input>
+            <input clear="false">n</input>
+            <output>sigma_voltage</output>
+        </formula>
+        <formula formula="([1]+[2])/([1]-[2])*[3]">
+            <input clear="false">maxlux</input>
+            <input clear="false">minlux</input>
+            <input clear="false">sigma_voltage</input>
+            <output>error_voltage_minmax</output>
+        </formula>
+        <formula formula="sqrt(([1]^2)+([2]^2)+([3]^2))">
+            <input clear="false">error_voltage_minmax</input>
+            <input clear="false">error_voltage_approx1</input>
+            <input clear="false">error_voltage_approx2</input>
+            <output>error_voltage</output>
+        </formula>
+    </analysis>
+
+    <views>
+        <view label="Raw Data">
+            <graph label="Voltage at LED (Channel A)" aspectRatio="2.5" style="lines" lineWidth="1" color="ff7e22" partialUpdate="true" history="1" labelX="Time" labelY="Voltage" labelZ="" unitX="s" unitY="V" unitZ="" logX="false" logY="false" logZ="false" xPrecision="3" yPrecision="3" zPrecision="3" scaleMinX="auto" scaleMaxX="auto" scaleMinY="auto" scaleMaxY="auto" scaleMinZ="auto" scaleMaxZ="auto" minX="0" maxX="0" minY="0" maxY="0" minZ="0" maxZ="0"  mapWidth="0">
+                <input axis="x">timeCH1_new</input>
+                <input axis="y">voltageCH1</input>
+            </graph>
+            <separator height="1"/>
+            <value label="Momentary voltage at LED:" size="1" precision="3" scientific="false" unit="V" factor="1" >
+                <input>voltageCH1</input>
+            </value>
+            <separator height="2"/>
+            <graph label="Light intensity (built-in sensor)" aspectRatio="2.5" style="lines" lineWidth="1" color="ff7e22" partialUpdate="true" history="1" labelX="Time" labelY="Intensity" labelZ="" unitX="s" unitY="lx" unitZ="" logX="false" logY="false" logZ="false" xPrecision="3" yPrecision="3" zPrecision="3" scaleMinX="auto" scaleMaxX="auto" scaleMinY="auto" scaleMaxY="auto" scaleMinZ="auto" scaleMaxZ="auto" minX="0" maxX="0" minY="0" maxY="0" minZ="0" maxZ="0"  mapWidth="0">
+                <input axis="x">time_intensity_new</input>
+                <input axis="y">intensity</input>
+            </graph>
+            <separator height="1"/>
+            <value label="Momentary light intensity:" size="1" precision="3" scientific="false" unit="lx" factor="1">
+                <input>intensity</input>
+            </value>
+        </view>
+
+	    <view label = "Identifying the threshold voltage">
+            <info label="Parameters for the line of best fit:" bold="True"/>
+            <edit label="Minimum intensity" signed="false" decimal="true" unit="lx" factor="1" default = "0">
+                <output>minlux</output>
+            </edit>
+            <edit label="Maximum intensity" signed="false" decimal="true" unit="lx" factor="1" default = "10000">
+                <output>maxlux</output>
+            </edit>
+            <separator height="2"/>
+		    <graph label="" aspectRatio="2.5" lineWidth="1" color="ff7e22" partialUpdate="false" history="1" labelY="Light intensity" labelX="Voltage at LED" labelZ="" unitX="V" unitY="lx" unitZ="" logX="false" logY="false" logZ="false" xPrecision="3" yPrecision="3" zPrecision="3" scaleMinX="auto" scaleMaxX="auto" scaleMinY="auto" scaleMaxY="auto" scaleMinZ="auto" scaleMaxZ="auto" minX="0" maxX="0" minY="0" maxY="0" minZ="0" maxZ="0"  mapWidth="0">
+                <input axis="x">voltageCH1_plot</input>
+                <input axis="y" style="dots">intensity</input>
+                <input axis="x">ycoord_trend</input>
+                <input axis="y" color="green">xcoord_trend</input>
+                <input axis="x">coeff_deg0</input>
+                <input axis="y" color="blue" style="dots" lineWidth="4">null</input>
+            </graph>
+
+            <separator height="1"/>
+            <value label="Number of data points:" size="1" precision="0" scientific="false" unit="" factor="1" color="orange">
+                <input>n</input>
+            </value>
+            <value label="Threshold voltage:" size="1" precision="4" scientific="false" unit="V" factor="1" color="blue">
+                <input>coeff_deg0</input>
+            </value>
+            <value label="Error on threshold voltage:" size="1" precision="4" scientific="false" unit="V" factor="1" color="magenta">
+                <input>error_voltage</input>
+            </value>
+	    </view>
+
+        <view label = "Additional parameters for line of best fit">
+            <info label="Approximate error on threshold voltage ..." bold="True"/>
+            <edit label="... from placing the line of best fit:" signed="false" decimal="true" unit="V" factor="1" default="0.02">
+                <output>error_voltage_approx1</output>
+            </edit>
+            <edit label="... from inaccuracies in the setup:" signed="false" decimal="true" unit="V" factor="1" default="0.05">
+                <output>error_voltage_approx2</output>
+            </edit>
+        </view>
+    </views>
+
+    <export>
+        <set name="Raw Data">
+            <data name="Time CH1 (s)">timeCH1_new</data>
+            <data name="Voltage CH1 (V)">voltageCH1</data>
+            <data name="Time internal (s)">time_intensity_new</data>
+            <data name="Light intensity (lx)">intensity</data>
+        </set>
+    </export>
+</phyphox>
